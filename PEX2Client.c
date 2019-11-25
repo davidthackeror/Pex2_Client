@@ -10,6 +10,7 @@
 
 #include <w32api/minwindef.h>
 #include "PEX2Client.h"
+#include "tcp_funcitons.h"
 
 
 #define timeout_time 5
