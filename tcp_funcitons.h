@@ -21,7 +21,18 @@ struct tcp_info{
 // Function to conduct 3-way handshake with server.  Establishes initial
 //   SEQ and ACK numbers.  Returns a tcp_info structure to the MP3Client
 //   that can later be passed to TCPSend/Receive.
-struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr);
+struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr){
+    struct tcp_info initTCP;
+    initTCP.my_seq = 1;
+    initTCP.remote_seq = 1;
+    initTCP.data_sent = 0;
+    initTCP.data_received = 0;
+    initTCP.remote_data_acknowledged = 0;
+    sendto(sockfd, (const char *) LIST_REQUEST, strlen(LIST_REQUEST), 0, (const struct sockaddr *) &servaddr,
+           sizeof(servaddr));
+    return &initTCP;
+}
+
 
 // Replaces all instances of "recvfrom" in your MP3Client.
 // UNIQUE PARAMETERS:
