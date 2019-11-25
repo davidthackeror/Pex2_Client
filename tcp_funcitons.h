@@ -28,9 +28,21 @@ struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr){
     initTCP.data_sent = 0;
     initTCP.data_received = 0;
     initTCP.remote_data_acknowledged = 0;
-    char* initSend = "FLAGS.2.SEQ.1747.ACK.0";
+    char* initSend = "FLAGS\n2\nSEQ\n1\nACK\n9477\nAPPDATA\n0";
+    //TODO sentto doesnt work from this function, probably has something to do with the servaddr works in main
     sendto(sockfd, (const char *) initSend, strlen(initSend), 0, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
+    printf("Starting three way handshake\n");
+    int n, len = sizeof(servaddr);
+    char buffer[MAXLINE]; //buffer to store message from server
+    if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len)) < 0) {
+        perror("ERROR");
+        printf("Errno: %d. ", errno);
+        exit(EXIT_FAILURE);
+    }
+    buffer[n] = '\0'; //terminate message
+    //display message received from the server
+    printf("Server : %s\n", buffer);
     return &initTCP;
 }
 
@@ -43,6 +55,7 @@ struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr){
 //  connection_info: structure that contains info about current connection
 int TCPReceive(int sockfd, char *appdata, int appdata_length, struct sockaddr_in *addr,
                      struct tcp_info *connection_info);
+//TODO TCPReceive
 
 // Replaces all instances of "sendto" in your MP3Client.
 // UNIQUE PARAMETERS:
@@ -51,5 +64,7 @@ int TCPReceive(int sockfd, char *appdata, int appdata_length, struct sockaddr_in
 //           the beginning of this data before it is sent.
 //  connection_info: structure that contains info about current connection
 int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in * addr, struct tcp_info *connection_info);
+
+//TODO TCPSend
 
 #endif //TCP_MP3SERVER_TCP_FUNCITONS_H
