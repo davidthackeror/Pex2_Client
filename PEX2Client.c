@@ -64,10 +64,11 @@ int main() {
 
             int n, len = sizeof(servaddr);
             //Sending message to server
-            sendto(sockfd, (const char *) LIST_REQUEST, strlen(LIST_REQUEST), 0, (const struct sockaddr *) &servaddr,
-                   sizeof(servaddr));
-            printf("Requesting Song List.\n");
-
+            TCPConnect(sockfd, &servaddr);
+//            sendto(sockfd, (const char *) LIST_REQUEST, strlen(LIST_REQUEST), 0, (const struct sockaddr *) &servaddr,
+//                   sizeof(servaddr));
+//            printf("Requesting Song List.\n");
+//
             // Receive message from client
             if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len)) < 0) {
                 perror("ERROR");
@@ -77,7 +78,7 @@ int main() {
             buffer[n] = '\0'; //terminate message
             //display message received from the server
             printf("Server : %s\n", buffer);
-            //close the socket to reestablish connection later if needed
+//            //close the socket to reestablish connection later if needed
             close(sockfd);
         }
 

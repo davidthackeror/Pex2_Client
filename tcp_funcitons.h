@@ -28,7 +28,8 @@ struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr){
     initTCP.data_sent = 0;
     initTCP.data_received = 0;
     initTCP.remote_data_acknowledged = 0;
-    sendto(sockfd, (const char *) LIST_REQUEST, strlen(LIST_REQUEST), 0, (const struct sockaddr *) &servaddr,
+    char* initSend = "FLAGS.2.SEQ.1747.ACK.0";
+    sendto(sockfd, (const char *) initSend, strlen(initSend), 0, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
     return &initTCP;
 }
