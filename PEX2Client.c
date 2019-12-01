@@ -62,9 +62,8 @@ int main() {
             struct tcp_info *initTCP = TCPConnect(sockfd, servaddr);
             int n, len = sizeof(servaddr);
             //Sending message to server
-            printf("I got to here\n");
-            TCPSend(sockfd, LIST_REQUEST, 12, servaddr, initTCP);
             printf("Requesting Song List.\n");
+            TCPSend(sockfd, LIST_REQUEST, 12, servaddr, initTCP);
 
             // Receive message from client
             if ((n = TCPReceive(sockfd, (char *) buffer, MAXLINE, servaddr, initTCP)) < 0) {
@@ -75,8 +74,10 @@ int main() {
             buffer[n] = '\0'; //terminate message
             //display message received from the server
             printf("Server : %s\n", buffer);
+            initTCP = TCPConnect(sockfd, servaddr);
             //close the socket to reestablish connection later if needed
             close(sockfd);
+            free(initTCP);
         }
 
 
