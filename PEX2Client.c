@@ -18,7 +18,9 @@
 int main() {
     int sockfd; //Socket descriptor, like a file-handle
 
-    char *LIST_REQUEST = "LIST_REQUEST"; //message to send to server
+    char buffer[MAXLINE]; //buffer to store message from server
+
+    char* LIST_REQUEST = "LIST_REQUEST"; //message to send to server
     char songInput[100];
 //    char START_STREAM[150] = "START_STREAM\nBilly Joel - We Didn't Start the Fire.mp3";
     struct sockaddr_in servaddr;  //we don't bind to a socket to send UDP traffic, so we only need to configure server address
@@ -31,15 +33,18 @@ int main() {
     long input;
     //declares that the socket is closed
     bool socketOpen = false;
+    do {
         //clear any input previously sent in
         fflush(stdout);
         //list out for the users the choices
         printf("'1' = List Songs\n");
-        printf("'2' = Exit\n");
+        printf("'3' = Exit\n");
         //take user input in the form of a string
+        scanf("%s", inputS);
         //convert the string to an int for comparison
+        input = strtol(inputS, &ptr, 10);
         //Program opens socket and receives communication from server for songs stored on the server
-
+        if (input == 1) {
 
             // Creating socket file descriptor
             if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -52,20 +57,31 @@ int main() {
             // Filling server information
             servaddr.sin_family = AF_INET; //IPv4
             servaddr.sin_port = htons(
-                    PORT); // port, converted to network byte order (prevents little/big endian confusion between hosts)
+                    PORT); // port, converted to network byte order prevents little/big endian confusion between hosts)
             servaddr.sin_addr.s_addr = INADDR_ANY; //localhost
-
+            struct tcp_info *initTCP = TCPConnect(sockfd, servaddr);
+            int n, len = sizeof(servaddr);
             //Sending message to server
-            struct tcp_info *tcpStruct = TCPConnect(sockfd, servaddr);
-            printf("%d", tcpStruct->my_seq);
+            printf("I got to here\n");
+            TCPSend(sockfd, LIST_REQUEST, 12, servaddr, initTCP);
+            printf("Requesting Song List.\n");
+
             // Receive message from client
-
-//            //close the socket to reestablish connection later if needed
+            if ((n = TCPReceive(sockfd, (char *) buffer, MAXLINE, servaddr, initTCP)) < 0) {
+                perror("ERROR");
+                printf("Errno: %d. ", errno);
+                exit(EXIT_FAILURE);
+            }
+            buffer[n] = '\0'; //terminate message
+            //display message received from the server
+            printf("Server : %s\n", buffer);
+            //close the socket to reestablish connection later if needed
             close(sockfd);
+        }
 
 
+    } while (input != 2);
     printf("Exiting program and closing the socket");
     close(sockfd);
     return 0;
 }
-
