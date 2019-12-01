@@ -47,6 +47,18 @@ struct headerStrip* stripHeader(char* buffer){
     return header;
 }
 
+bool rejectPacket(char* buffer, struct tcp_info *connection_info){
+    struct headerStrip* header = stripHeader(buffer);
+    if(header->SEQ != connection_info->remote_seq + connection_info->remote_data_acknowledged + 1){
+        return false;
+    }
+
+    if(header->ACK != connection_info->my_seq + connection_info->data_sent + 1){
+        return false;
+    }
+    return true;
+}
+
 char* tcpHeaderCreator(int flags, int seq, int ack, char* data){
     char ch1[100];
     char ch2[100];
@@ -142,22 +154,31 @@ int TCPReceive(int sockfd, char *appdata, int appdata_length, struct sockaddr_in
         printf("Errno: %d. ", errno);
         exit(EXIT_FAILURE);
     }
-
+    if(rejectPacket(buffer, connection_info) == false){
+        return -1;
+    }
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) < 0) {
         perror("ERROR");
         printf("Errno: %d. ", errno);
         exit(EXIT_FAILURE);
     }
     struct headerStrip* header = stripHeader(buffer);
+
+    connection_info->data_received = connection_info->data_received + strlen(header->data)-1;
+
+    if(rejectPacket(buffer, connection_info) == false){
+        return -1;
+    }
     printf("%s", header->data);
-    connection_info->remote_data_acknowledged = connection_info->remote_data_acknowledged + strlen(header->data)-1;
-    char* ackHeader = tcpHeaderCreator(16, connection_info->my_seq+connection_info->data_sent + 1, connection_info->remote_seq+connection_info->remote_data_acknowledged + 1, NULL);
+    char* ackHeader = tcpHeaderCreator(16, connection_info->my_seq+connection_info->data_sent + 1, connection_info->remote_seq+connection_info->data_received + 1, NULL);
     sendto(sockfd, (const char *) ackHeader, strlen(ackHeader), 0, (const struct sockaddr *) &addr,
            sizeof(addr));
-    char* listReply = header->data + 11;
-    printf("%s", listReply);
+    connection_info->remote_data_acknowledged = connection_info->remote_data_acknowledged + strlen(header->data)-1;
+
+    appdata = header->data + 11;
     return 0;
 }
+
 
 // Replaces all instances of "sendto" in your MP3Client.
 // UNIQUE PARAMETERS:
