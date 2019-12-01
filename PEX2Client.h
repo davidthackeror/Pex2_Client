@@ -8,8 +8,8 @@
  * ===========================================================
  */
 
-#ifndef PEX1_PEX1_H
-#define PEX1_PEX1_H
+#ifndef PEX2_PEX2_H
+#define PEX2_PEX2_H
 
 #include <stdio.h>
 #include <string.h>
@@ -23,6 +23,8 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <sys/time.h>
+#include "tcp_funcitons.h"
+
 
 
 #define PORT     4240
@@ -31,4 +33,4 @@
 
 
 
-#endif //PEX1_PEX1_H
+#endif //PEX2_PEX2_H

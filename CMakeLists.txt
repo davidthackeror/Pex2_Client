@@ -1,7 +1,8 @@
+set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 cmake_minimum_required(VERSION 3.14)
 
 # Set the title of your project and language
-project(Pex1_Client)
+project(Pex2_Client)
 #project(Pex1_Server)
 
 # Set the version of the C language standard you will be using

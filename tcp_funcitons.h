@@ -6,6 +6,10 @@
 #ifndef TCP_MP3SERVER_TCP_FUNCITONS_H
 #define TCP_MP3SERVER_TCP_FUNCITONS_H
 
+#define MAXLINE 600
+
+#include "PEX2ClientNew.h"
+
 // Structure is used to track the details of the current connection.
 // This data is initialized during TCPConnect (3-way handshake)
 // Must be provided to TCPSend/Receive so that subsequent packets have
@@ -18,19 +22,53 @@ struct tcp_info{
     int remote_data_acknowledged;  //number of bytes server has received.  Updated
 };
 
+char* tcpHeaderCreator(int flags, int seq, int ack, int data){
+    char ch1[100];
+    char ch2[100];
+    char ch3[100];
+    char ch4[100];
+
+    sprintf(ch1, "%d", flags);
+    char flagsString[200] =  "FLAGS\n";
+    strcat(flagsString, ch1);
+
+    sprintf(ch2, "%d", seq);
+    char seqString[100] =  "\nSEQ\n";
+    strcat(seqString, ch2);
+
+    sprintf(ch3, "%d", ack);
+    char ackString[100] =  "\nACK\n";
+    strcat(ackString, ch3);
+
+    sprintf(ch4, "%d", data);
+    char dataString[100] =  "\nAPPDATA\n";
+    if(data != 0){
+        strcat(dataString, ch4);
+    }
+    strcat(flagsString,seqString);
+
+    strcat(flagsString,ackString);
+
+    strcat(flagsString,dataString);
+
+    char* buffer = malloc(sizeof(flagsString));
+    strcpy(buffer, flagsString);
+
+    return buffer;
+}
+
 // Function to conduct 3-way handshake with server.  Establishes initial
 //   SEQ and ACK numbers.  Returns a tcp_info structure to the MP3Client
 //   that can later be passed to TCPSend/Receive.
-struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr){
+struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in servaddr){
+
     struct tcp_info initTCP;
-    initTCP.my_seq = 1;
-    initTCP.remote_seq = 1;
-    initTCP.data_sent = 0;
-    initTCP.data_received = 0;
-    initTCP.remote_data_acknowledged = 0;
-    char* initSend = "FLAGS\n2\nSEQ\n1\nACK\n9477\nAPPDATA\n0";
-    //TODO sentto doesnt work from this function, probably has something to do with the servaddr works in main
-    sendto(sockfd, (const char *) initSend, strlen(initSend), 0, (const struct sockaddr *) &servaddr,
+    time_t t;
+    srand((unsigned) time(&t));
+    int seq = rand() % 10000;
+    initTCP.my_seq = seq;
+    char* header = tcpHeaderCreator(2,seq,0,0);
+    sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
     printf("Starting three way handshake\n");
     int n, len = sizeof(servaddr);
@@ -40,11 +78,28 @@ struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in * servaddr){
         printf("Errno: %d. ", errno);
         exit(EXIT_FAILURE);
     }
-    buffer[n] = '\0'; //terminate message
-    //display message received from the server
-    printf("Server : %s\n", buffer);
+    printf("Server: \n %s \n", buffer);
+    sscanf("%d", buffer);
+    const char* s = "ab234cid*(s349*(20kd";
+    int FLAG, SEQ, ACK;
+    if (3 == sscanf(buffer,
+                    "%*[^0123456789]%d%*[^0123456789]%d%*[^0123456789]%d",
+                    &FLAG,
+                    &SEQ,
+                    &ACK))
+    {
+        printf("%d %d %d\n", FLAG, SEQ, ACK);
+    }
+    initTCP.remote_seq = SEQ;
+    header = tcpHeaderCreator(16,seq + 1, SEQ + 1,0);
+    sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &servaddr,
+           sizeof(servaddr));
+    initTCP.remote_data_acknowledged = 0;
+    initTCP.data_received = 0;
+    initTCP.data_sent = 0;
     return &initTCP;
 }
+
 
 
 // Replaces all instances of "recvfrom" in your MP3Client.

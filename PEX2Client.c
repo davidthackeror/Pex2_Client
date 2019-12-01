@@ -9,8 +9,7 @@
  */
 
 #include <w32api/minwindef.h>
-#include "PEX2Client.h"
-#include "tcp_funcitons.h"
+#include "PEX2ClientNew.h"
 
 
 #define timeout_time 5
@@ -18,8 +17,6 @@
 
 int main() {
     int sockfd; //Socket descriptor, like a file-handle
-
-    char buffer[MAXLINE]; //buffer to store message from server
 
     char *LIST_REQUEST = "LIST_REQUEST"; //message to send to server
     char songInput[100];
@@ -34,19 +31,15 @@ int main() {
     long input;
     //declares that the socket is closed
     bool socketOpen = false;
-    do {
         //clear any input previously sent in
         fflush(stdout);
         //list out for the users the choices
         printf("'1' = List Songs\n");
         printf("'2' = Exit\n");
         //take user input in the form of a string
-        scanf("%s", inputS);
         //convert the string to an int for comparison
-        input = strtol(inputS, &ptr, 10);
         //Program opens socket and receives communication from server for songs stored on the server
 
-        if (input == 1) {
 
             // Creating socket file descriptor
             if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -62,18 +55,15 @@ int main() {
                     PORT); // port, converted to network byte order (prevents little/big endian confusion between hosts)
             servaddr.sin_addr.s_addr = INADDR_ANY; //localhost
 
-            int n, len = sizeof(servaddr);
             //Sending message to server
-            struct tcp_info *tcpData = TCPConnect(sockfd, (struct sockaddr_in *) &servaddr);
-
+            struct tcp_info *tcpStruct = TCPConnect(sockfd, servaddr);
+            printf("%d", tcpStruct->my_seq);
             // Receive message from client
 
 //            //close the socket to reestablish connection later if needed
             close(sockfd);
-        }
 
 
-    } while (input != 2);
     printf("Exiting program and closing the socket");
     close(sockfd);
     return 0;
