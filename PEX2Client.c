@@ -51,6 +51,14 @@ int main() {
                 perror("socket creation failed");
                 exit(EXIT_FAILURE);
             }
+
+            struct timeval timeout; //structure to hold our timeout
+            timeout.tv_sec = 5; //5 second timeout
+            timeout.tv_usec = 0; //0 milliseconds
+            if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout, sizeof(timeout)) < 0){
+                perror("setsockopt failed");
+                exit(EXIT_FAILURE);
+            }
             //declares that the socket is open
             socketOpen = true;
 

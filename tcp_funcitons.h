@@ -32,6 +32,8 @@ struct headerStrip{
     char* data;
 };
 
+
+
 /**
  * stripHeader removes the underlying string from a flag header and returns the data in a struct called headerStrip
  * @param buffer the string containing a header to be stripped
@@ -251,12 +253,45 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
     //update struct with the data we have sent
     char* buffer = malloc(sizeof(char*));
     int n, len = sizeof(addr);
+
     //TODO implement a check to see if no ACK recieved from server and attempt to resend packet
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
+        // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
         perror("ERROR");
-        printf("Errno: %d. ", errno);
-        exit(EXIT_FAILURE);
-    }
+        printf("Errno: %d. ",errno);
+        if(errno == 11) {
+            sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
+            if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
+                // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
+                perror("ERROR");
+                printf("Errno: %d. ", errno);
+                if (errno == 11) {
+                    sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr,
+                           sizeof(addr));
+                    if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
+                        // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
+                        perror("ERROR");
+                        printf("Errno: %d. ", errno);
+                        if (errno == 11) {
+                            sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr,
+                                   sizeof(addr));
+                            if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <=
+                                0) {
+                                // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
+                                perror("ERROR");
+                                printf("Errno: %d. ", errno);
+                                if (errno == 11) {
+                                    exit(EXIT_FAILURE);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        }
+    // Set the timeout for the socket:
+
     //check to see if the packet fails conditions and if function should ignore
     if(rejectPacket(buffer, connection_info) == 0){
         //if it fails the SEQ check try again with another ACK packet
