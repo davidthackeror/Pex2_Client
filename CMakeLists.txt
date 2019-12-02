@@ -1,4 +1,3 @@
-set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 cmake_minimum_required(VERSION 3.14)
 
 # Set the title of your project and language

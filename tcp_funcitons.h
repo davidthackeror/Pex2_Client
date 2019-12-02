@@ -74,6 +74,9 @@ int rejectPacket(char* buffer, struct tcp_info *connection_info){
     if(header->ACK != connection_info->my_seq + connection_info->data_sent + 1){
         return 0;
     }
+    if(buffer[1] != 'L'){
+        exit(EXIT_FAILURE);
+    }
 
     return 1;
 }
@@ -147,13 +150,17 @@ struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in servaddr){
     char* header = tcpHeaderCreator(2,seq,0,0);
     sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
-//    printf("Starting three way handshake\n");
+    printf("Starting three way handshake\n");
     int n, len = sizeof(servaddr);
     char buffer[MAXLINE]; //buffer to store message from server
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len)) < 0) {
         perror("ERROR");
         printf("Errno: %d. ", errno);
         exit(EXIT_FAILURE);
+    }
+    if(rejectPacket(buffer, initTCP) == -2){
+        initTCP->my_seq = -1;
+        return initTCP;
     }
 //    printf("Server: \n %s \n", buffer);
     const char* s = "ab234cid*(s349*(20kd";
@@ -220,7 +227,7 @@ int TCPReceive(int sockfd, char* appdata, int appdata_length, struct sockaddr_in
 
     //print the data so CPT Masters thinks I know what I'm doing
     //If CPT Masters is reading this I couldn't get the appdata to be updated in the main of PEX2Client so I print it here, sorry
-    printf("%s", appdata + 11);
+    printf("%s", header->data);
 
     //free the sturct with the returned header data
     free(header);
@@ -240,7 +247,6 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
     char* header = tcpHeaderCreator(16,connection_info->my_seq+connection_info->data_sent + 1,connection_info->remote_seq+connection_info->remote_data_acknowledged + 1,appdata);
     sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
     //update struct with the data we have sent
-    connection_info->data_sent = connection_info->data_sent + appdata_length;
     char* buffer = malloc(sizeof(char*));
     int n, len = sizeof(addr);
     //TODO implement a check to see if no ACK recieved from server and attempt to resend packet
@@ -250,8 +256,11 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
         exit(EXIT_FAILURE);
     }
     //check to see if the packet fails conditions and if function should ignore
-    if(rejectPacket(buffer, connection_info) == false){
-        return -1;
+    if(rejectPacket(buffer, connection_info) == 0){
+        //if it fails the SEQ check try again with another ACK packet
+        char* header = tcpHeaderCreator(16,connection_info->my_seq+connection_info->data_sent + 1,connection_info->remote_seq+connection_info->remote_data_acknowledged + 1,appdata);
+        sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
+        connection_info->data_sent = connection_info->data_sent + appdata_length;
     }
 
     if(rejectPacket(buffer, connection_info) == -1){
