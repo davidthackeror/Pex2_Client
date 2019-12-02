@@ -67,13 +67,15 @@ struct headerStrip* stripHeader(char* buffer){
  */
 int rejectPacket(char* buffer, struct tcp_info *connection_info){
     struct headerStrip* header = stripHeader(buffer);
+    //check to see if an incorrect seq was recieved
     if(header->SEQ != connection_info->remote_seq + connection_info->remote_data_acknowledged + 1){
         return -1;
     }
-
+    //check to see if an incorrect ack was recieved
     if(header->ACK != connection_info->my_seq + connection_info->data_sent + 1){
         return 0;
     }
+    //check to see if there is a malformed header
     if(buffer[1] != 'L'){
         exit(EXIT_FAILURE);
     }
