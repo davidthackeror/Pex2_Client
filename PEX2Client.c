@@ -66,14 +66,12 @@ int main() {
             TCPSend(sockfd, LIST_REQUEST, 12, servaddr, initTCP);
 
             // Receive message from client
-            if ((n = TCPReceive(sockfd, (char *) buffer, MAXLINE, servaddr, initTCP)) < 0) {
+            if ((n = TCPReceive(sockfd, buffer, MAXLINE, servaddr, initTCP)) < 0) {
                 perror("ERROR");
                 printf("Errno: %d. ", errno);
                 exit(EXIT_FAILURE);
             }
-            buffer[n] = '\0'; //terminate message
             //display message received from the server
-            printf("Server : %s\n", buffer);
             initTCP = TCPConnect(sockfd, servaddr);
             //close the socket to reestablish connection later if needed
             close(sockfd);
