@@ -52,13 +52,15 @@ int main() {
                 exit(EXIT_FAILURE);
             }
 
+            //timeout on the socket
             struct timeval timeout; //structure to hold our timeout
-            timeout.tv_sec = 5; //5 second timeout
+            timeout.tv_sec = 1; //1 second timeout
             timeout.tv_usec = 0; //0 milliseconds
             if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout, sizeof(timeout)) < 0){
                 perror("setsockopt failed");
                 exit(EXIT_FAILURE);
             }
+
             //declares that the socket is open
             socketOpen = true;
 
@@ -68,13 +70,11 @@ int main() {
                     PORT); // port, converted to network byte order prevents little/big endian confusion between hosts)
             servaddr.sin_addr.s_addr = INADDR_ANY; //localhost
             struct tcp_info *initTCP = TCPConnect(sockfd, servaddr);
-            if(initTCP->my_seq == -1){
-                break;
-            }
             int n, len = sizeof(servaddr);
             //Sending message to server
             printf("Requesting Song List.\n");
             TCPSend(sockfd, LIST_REQUEST, 12, servaddr, initTCP);
+
             // Receive message from client
             if ((n = TCPReceive(sockfd, buffer, MAXLINE, servaddr, initTCP)) < 0) {
                 perror("ERROR");

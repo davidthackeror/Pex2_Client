@@ -32,8 +32,6 @@ struct headerStrip{
     char* data;
 };
 
-
-
 /**
  * stripHeader removes the underlying string from a flag header and returns the data in a struct called headerStrip
  * @param buffer the string containing a header to be stripped
@@ -65,21 +63,23 @@ struct headerStrip* stripHeader(char* buffer){
  * rejectPacket serves as a check to see if the header given passes the required checks as a fuctioning non-malformed packet
  * @param buffer the header given from the recvfrom
  * @param connection_info the struct containing all current data on sending and recieving
- * @return a -1 if the SEQ fails, a 0 if the ACK fails, or a 1 if all checks pass
+ * @return a -1 if the SEQ fails, a -2 if the ACK fails, or a 1 if all checks pass
  */
 int rejectPacket(char* buffer, struct tcp_info *connection_info){
     struct headerStrip* header = stripHeader(buffer);
-    //check to see if an incorrect seq was recieved
-    if(header->SEQ != connection_info->remote_seq + connection_info->remote_data_acknowledged + 1){
+
+    //is header malformed
+    if(buffer[1] != 'L'){
+        printf("Program recived a malformed header, program will exit");
+        exit(EXIT_FAILURE);
+    }
+    //is the given sequence number wrong
+    if(header->SEQ != connection_info->remote_seq + connection_info->data_received + 1){
         return -1;
     }
-    //check to see if an incorrect ack was recieved
+    //is the given ACK wrong
     if(header->ACK != connection_info->my_seq + connection_info->data_sent + 1){
-        return 0;
-    }
-    //check to see if there is a malformed header
-    if(buffer[1] != 'L'){
-        exit(EXIT_FAILURE);
+        return -2;
     }
 
     return 1;
@@ -154,17 +154,13 @@ struct tcp_info* TCPConnect(int sockfd,  struct sockaddr_in servaddr){
     char* header = tcpHeaderCreator(2,seq,0,0);
     sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
-    printf("Starting three way handshake\n");
+//    printf("Starting three way handshake\n");
     int n, len = sizeof(servaddr);
     char buffer[MAXLINE]; //buffer to store message from server
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len)) < 0) {
         perror("ERROR");
         printf("Errno: %d. ", errno);
         exit(EXIT_FAILURE);
-    }
-    if(rejectPacket(buffer, initTCP) == -2){
-        initTCP->my_seq = -1;
-        return initTCP;
     }
 //    printf("Server: \n %s \n", buffer);
     const char* s = "ab234cid*(s349*(20kd";
@@ -197,6 +193,7 @@ int TCPReceive(int sockfd, char* appdata, int appdata_length, struct sockaddr_in
     int n, len = sizeof(addr);
     char buffer[MAXLINE]; //buffer to store message from server
     //fetches response from server
+
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
         perror("ERROR");
         printf("Errno: %d. ", errno);
@@ -205,33 +202,32 @@ int TCPReceive(int sockfd, char* appdata, int appdata_length, struct sockaddr_in
     //strip the header recieved from the server
     struct headerStrip* header = stripHeader(buffer);
 
-    //update TCP struct with data recieved
-    connection_info->data_received = connection_info->data_received + strlen(header->data)-1;
+    int info = rejectPacket(buffer, connection_info);
 
-    //check to see if packet needs to be rejected
-    if(rejectPacket(buffer, connection_info) == -1){
-        char* ackHeader = tcpHeaderCreator(16, connection_info->my_seq+connection_info->data_sent + 1, connection_info->remote_seq+connection_info->data_received + 1, NULL);
-        sendto(sockfd, (const char *) ackHeader, strlen(ackHeader), 0, (const struct sockaddr *) &addr,
-               sizeof(addr));
+    if(info == -1){
+        char* tempAck = tcpHeaderCreator(16,connection_info->my_seq+connection_info->data_sent + 1,connection_info->remote_seq+connection_info->remote_data_acknowledged + 1,appdata);
+        sendto(sockfd, (const char *) tempAck, strlen(tempAck), 0, (const struct sockaddr *) &addr, sizeof(addr));
+
     }
-    else if(rejectPacket(buffer, connection_info) == 0){
-        return -1;
-    }
+
+    //update TCP struct with data recieved
+    connection_info->data_received = connection_info->data_received + strlen(header->data) -1;
 
     //send an ACK that data has been recieved
     char* ackHeader = tcpHeaderCreator(16, connection_info->my_seq+connection_info->data_sent + 1, connection_info->remote_seq+connection_info->data_received + 1, NULL);
     sendto(sockfd, (const char *) ackHeader, strlen(ackHeader), 0, (const struct sockaddr *) &addr,
            sizeof(addr));
 
+
     //update struct that the remote data has been ACK'd
-    connection_info->remote_data_acknowledged = connection_info->remote_data_acknowledged + strlen(header->data)-1;
+    connection_info->remote_data_acknowledged = connection_info->data_received;
 
     //update the passed in buffer with the data
     appdata = header->data;
 
     //print the data so CPT Masters thinks I know what I'm doing
     //If CPT Masters is reading this I couldn't get the appdata to be updated in the main of PEX2Client so I print it here, sorry
-    printf("%s", header->data);
+    printf("%s", appdata + 11);
 
     //free the sturct with the returned header data
     free(header);
@@ -240,7 +236,7 @@ int TCPReceive(int sockfd, char* appdata, int appdata_length, struct sockaddr_in
 }
 
 
-// Replaces all instances of "sendto" in your MP3Client.
+// Replaces all instances of "sendto" in your MP3Client.+
 // UNIQUE PARAMETERS:
 //  appdata: pointer to the buffer that contains the application data the
 //           MP3Client is trying to send.  TCP header information is added to
@@ -251,14 +247,15 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
     char* header = tcpHeaderCreator(16,connection_info->my_seq+connection_info->data_sent + 1,connection_info->remote_seq+connection_info->remote_data_acknowledged + 1,appdata);
     sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
     //update struct with the data we have sent
-    char* buffer = malloc(sizeof(char*));
-    int n, len = sizeof(addr);
+    connection_info->data_sent = connection_info->data_sent + appdata_length;
 
-    //TODO implement a check to see if no ACK recieved from server and attempt to resend packet
+    int n, len = sizeof(addr);
+    char buffer[MAXLINE]; //buffer to store message from server
+    //fetches response from server
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
-        // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
         perror("ERROR");
-        printf("Errno: %d. ",errno);
+        printf("Packet dropped, resending\n1");
+        //will attempt up to three times to contact server and resend ack packet
         if(errno == 11) {
             sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
             if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
@@ -289,29 +286,25 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
                 }
             }
         }
-        }
-    // Set the timeout for the socket:
-
-    //check to see if the packet fails conditions and if function should ignore
-    if(rejectPacket(buffer, connection_info) == 0){
-        //if it fails the SEQ check try again with another ACK packet
-        char* header = tcpHeaderCreator(16,connection_info->my_seq+connection_info->data_sent + 1,connection_info->remote_seq+connection_info->remote_data_acknowledged + 1,appdata);
-        sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
-        connection_info->data_sent = connection_info->data_sent + appdata_length;
     }
 
-    if(rejectPacket(buffer, connection_info) == -1){
-        //if it fails the SEQ check try again with another ACK packet
-        char* ackHeader = tcpHeaderCreator(16, connection_info->my_seq+connection_info->data_sent + 1, connection_info->remote_seq+connection_info->data_received + 1, NULL);
-        sendto(sockfd, (const char *) ackHeader, strlen(ackHeader), 0, (const struct sockaddr *) &addr,
-               sizeof(addr));
-    }
 
     //strip the header
     struct headerStrip* strippedHeader = stripHeader(buffer);
 
-    //add the data recieved from the ACK into the overlying TCP struct
-    connection_info->data_received = connection_info->data_received + strlen(strippedHeader->data)-1;
+    //see if packet should be rejected or have work done
+    int info = rejectPacket(buffer, connection_info);
+
+    //detected is wrong ACK number is given and sends a new ack
+    if(info == -2){
+        printf("Wrong ACK number detected\n");
+        printf("%d\n", strippedHeader->ACK);
+        printf("Expected %d\n", (connection_info->my_seq + connection_info->data_sent + 1));
+        sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
+
+    }
+
+
 
 }
 
