@@ -233,7 +233,7 @@ int TCPReceive(int sockfd, char* appdata, int appdata_length, struct sockaddr_in
 }
 
 
-// Replaces all instances of "sendto" in your MP3Client.
+// Replaces all instances of "sendto" in your MP3Client.+
 // UNIQUE PARAMETERS:
 //  appdata: pointer to the buffer that contains the application data the
 //           MP3Client is trying to send.  TCP header information is added to
@@ -245,25 +245,60 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
     sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
     //update struct with the data we have sent
     connection_info->data_sent = connection_info->data_sent + appdata_length;
-    char* buffer = malloc(sizeof(char*));
+
     int n, len = sizeof(addr);
+    char buffer[MAXLINE]; //buffer to store message from server
+    //fetches response from server
+
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
         perror("ERROR");
         printf("Errno: %d. ", errno);
-        exit(EXIT_FAILURE);
+        printf("Errno: %d. ",errno);
+        if(errno == 11) {
+            sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
+            if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
+                // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
+                perror("ERROR");
+                printf("Errno: %d. ", errno);
+                if (errno == 11) {
+                    sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr,
+                           sizeof(addr));
+                    if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
+                        // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
+                        perror("ERROR");
+                        printf("Errno: %d. ", errno);
+                        if (errno == 11) {
+                            sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr,
+                                   sizeof(addr));
+                            if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <=
+                                0) {
+                                // Handle errors here.  Errno 11, "Resource Temporarily Unavailable" is returned as a result of a timeout.
+                                perror("ERROR");
+                                printf("Errno: %d. ", errno);
+                                if (errno == 11) {
+                                    exit(EXIT_FAILURE);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+
 
     //strip the header
     struct headerStrip* strippedHeader = stripHeader(buffer);
 
     int info = rejectPacket(buffer, connection_info);
 
-    if(info == -1){
+    if(info == -2){
+        printf("Wrong ACK number detected\n");
+        printf("%d\n", strippedHeader->ACK);
+        printf("Expected %d\n", (connection_info->my_seq + connection_info->data_sent + 1));
         sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
-    }
 
-    //add the data recieved from the ACK into the overlying TCP struct
-    connection_info->data_received = connection_info->data_received + strlen(strippedHeader->data);
+    }
 
 
 

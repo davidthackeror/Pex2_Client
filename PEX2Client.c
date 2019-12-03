@@ -59,6 +59,7 @@ int main() {
                 perror("setsockopt failed");
                 exit(EXIT_FAILURE);
             }
+
             //declares that the socket is open
             socketOpen = true;
 
@@ -68,13 +69,11 @@ int main() {
                     PORT); // port, converted to network byte order prevents little/big endian confusion between hosts)
             servaddr.sin_addr.s_addr = INADDR_ANY; //localhost
             struct tcp_info *initTCP = TCPConnect(sockfd, servaddr);
-            if(initTCP->my_seq == -1){
-                break;
-            }
             int n, len = sizeof(servaddr);
             //Sending message to server
             printf("Requesting Song List.\n");
             TCPSend(sockfd, LIST_REQUEST, 12, servaddr, initTCP);
+
             // Receive message from client
             if ((n = TCPReceive(sockfd, buffer, MAXLINE, servaddr, initTCP)) < 0) {
                 perror("ERROR");
