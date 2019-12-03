@@ -63,18 +63,21 @@ struct headerStrip* stripHeader(char* buffer){
  * rejectPacket serves as a check to see if the header given passes the required checks as a fuctioning non-malformed packet
  * @param buffer the header given from the recvfrom
  * @param connection_info the struct containing all current data on sending and recieving
- * @return a -1 if the SEQ fails, a 0 if the ACK fails, or a 1 if all checks pass
+ * @return a -1 if the SEQ fails, a -2 if the ACK fails, or a 1 if all checks pass
  */
 int rejectPacket(char* buffer, struct tcp_info *connection_info){
     struct headerStrip* header = stripHeader(buffer);
 
+    //is header malformed
     if(buffer[1] != 'L'){
         printf("Program recived a malformed header, program will exit");
         exit(EXIT_FAILURE);
     }
+    //is the given sequence number wrong
     if(header->SEQ != connection_info->remote_seq + connection_info->data_received + 1){
         return -1;
     }
+    //is the given ACK wrong
     if(header->ACK != connection_info->my_seq + connection_info->data_sent + 1){
         return -2;
     }
@@ -249,11 +252,10 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
     int n, len = sizeof(addr);
     char buffer[MAXLINE]; //buffer to store message from server
     //fetches response from server
-
     if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
         perror("ERROR");
-        printf("Errno: %d. ", errno);
-        printf("Errno: %d. ",errno);
+        printf("Packet dropped, resending\n1");
+        //will attempt up to three times to contact server and resend ack packet
         if(errno == 11) {
             sendto(sockfd, (const char *) header, strlen(header), 0, (const struct sockaddr *) &addr, sizeof(addr));
             if ((n = recvfrom(sockfd, (char *) buffer, MAXLINE, 0, (struct sockaddr *) &addr, &len)) <= 0) {
@@ -290,8 +292,10 @@ int TCPSend(int sockfd, char* appdata, int appdata_length, struct sockaddr_in ad
     //strip the header
     struct headerStrip* strippedHeader = stripHeader(buffer);
 
+    //see if packet should be rejected or have work done
     int info = rejectPacket(buffer, connection_info);
 
+    //detected is wrong ACK number is given and sends a new ack
     if(info == -2){
         printf("Wrong ACK number detected\n");
         printf("%d\n", strippedHeader->ACK);

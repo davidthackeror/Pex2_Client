@@ -52,8 +52,9 @@ int main() {
                 exit(EXIT_FAILURE);
             }
 
+            //timeout on the socket
             struct timeval timeout; //structure to hold our timeout
-            timeout.tv_sec = 5; //5 second timeout
+            timeout.tv_sec = 1; //1 second timeout
             timeout.tv_usec = 0; //0 milliseconds
             if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout, sizeof(timeout)) < 0){
                 perror("setsockopt failed");
